@@ -10,6 +10,7 @@ def test_fun1():
 
 def test_fun2():
     assert calculator.fun2(2, 3) == -1
+    assert calculator.fun2(4, 3) == 1
     assert calculator.fun2(5,0) == 5
     assert calculator.fun2 (-1, 1) == -2
     assert calculator.fun2 (-1, -1) == 0
