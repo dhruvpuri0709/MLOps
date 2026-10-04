@@ -1,25 +1,18 @@
-name: Testing Github Lab1 with Pytest
+name: Testing with Pytest
+run-name: Pytest
 
 on:
   push:
     branches:
       - main
-    paths:
-      - 'Labs/Github_Labs/Lab1/**' # Run only when Lab1 changes
-      - '.github/workflows/github_lab1_pytest_action.yml'
+      - 'releases/**' # Run only when a push to a branch matching these filters occurs
   pull_request:
     branches:
       - main
-    paths:
-      - 'Labs/Github_Labs/Lab1/**'
-      - '.github/workflows/github_lab1_pytest_action.yml'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: Labs/Github_Labs/Lab1
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -33,7 +26,7 @@ jobs:
       run: pip install -r requirements.txt
 
     - name: Run tests and generate XML report
-      run: python -m pytest test/test_pytest.py --junitxml=pytest-report.xml
+      run: python -m pytest --junitxml=pytest-report.xml
       continue-on-error: false
 
     - name: Upload test results
@@ -41,7 +34,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: test-results
-        path: Labs/Github_Labs/Lab1/pytest-report.xml
+        path: pytest-report.xml
 
     - name: Notify on success
       if: success()
