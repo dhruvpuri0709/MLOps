@@ -6,13 +6,13 @@ on:
       - main
     paths:
       - 'Labs/Github_Labs/Lab1/**' # Run only when Lab1 changes
-      - '.github/workflows/github_lab2_unittest_action.yml'
+      - '.github/workflows/github_lab1_unittest_action.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'Labs/Github_Labs/Lab1/**'
-      - '.github/workflows/github_lab2_unittest_action.yml'
+      - '.github/workflows/github_lab1_unittest_action.yml'
 
 jobs:
   build:
