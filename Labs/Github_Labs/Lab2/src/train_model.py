@@ -6,6 +6,7 @@ from sklearn.datasets import make_classification
 from sklearn.metrics import accuracy_score, f1_score
 import sys
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
 import argparse
 
 sys.path.insert(0, os.path.abspath('..'))
@@ -23,9 +24,11 @@ if __name__ == '__main__':
     # Use the timestamp in your script
     print(f"Timestamp received from GitHub Actions: {timestamp}")
     
-    # Check if the file exists within the folder
-    X, y = make_classification(
-                            n_samples=random.randint(0, 2000),
+    # Generate one pool and split it, so the calibration and test sets come from the
+    # same distribution as the training data (make_classification gives a different
+    # problem for every n_samples / random_state)
+    X_all, y_all = make_classification(
+                            n_samples=random.randint(2000, 4000),
                             n_features=6,
                             n_informative=3,
                             n_redundant=0,
@@ -34,21 +37,24 @@ if __name__ == '__main__':
                             random_state=0,
                             shuffle=True,
                         )
-    if os.path.exists('data'): 
-        with open('data/data.pickle', 'wb') as data:
-            pickle.dump(X, data)
-            
-        with open('data/target.pickle', 'wb') as data:
-            pickle.dump(y, data)  
-    else:
-        os.makedirs('data/')
-        with open('data/data.pickle', 'wb') as data:
-            pickle.dump(X, data)
-            
-        with open('data/target.pickle', 'wb') as data:
-            pickle.dump(y, data)  
-            
-    mlflow.set_tracking_uri("./mlruns")
+    # 60% train, 20% calibration, 20% test
+    X, X_hold, y, y_hold = train_test_split(X_all, y_all, test_size=0.4, random_state=0, stratify=y_all)
+    X_cal, X_test, y_cal, y_test = train_test_split(X_hold, y_hold, test_size=0.5, random_state=0, stratify=y_hold)
+
+    os.makedirs('data', exist_ok=True)
+    with open('data/data.pickle', 'wb') as data:
+        pickle.dump(X, data)
+
+    with open('data/target.pickle', 'wb') as data:
+        pickle.dump(y, data)
+
+    with open('data/calibration.pickle', 'wb') as data:
+        pickle.dump((X_cal, y_cal), data)
+
+    with open('data/test.pickle', 'wb') as data:
+        pickle.dump((X_test, y_test), data)
+
+    mlflow.set_tracking_uri("sqlite:///mlflow.db")
     dataset_name = "Reuters Corpus Volume"
     current_time = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
     experiment_name = f"{dataset_name}_{current_time}"    
