@@ -1,8 +1,9 @@
 name: Train and save model to GCS # Define the name of the GitHub Actions workflow
 
 on:
-  schedule:
-    - cron: '0 0 * * *' # Run every day at midnight
+  # Disabled until Lab3 is set up (needs GCP_SA_KEY secret)
+  # schedule:
+  #   - cron: '0 0 * * *' # Run every day at midnight
   workflow_dispatch: # Allow manual trigger of the workflow
 
 jobs:

@@ -1,9 +1,12 @@
-name: Model Retraining on Push to Main - Github Lab 2
+name: Model Training and Evaluation on Push - Github Lab 2
 
 on:
   push:
     branches:
       - main  # Trigger the workflow on pushes to the main branch
+
+permissions:
+  contents: write  # Allow the GITHUB_TOKEN to push the new model and metrics back to the repo
 
 jobs:
   retrain:
@@ -53,8 +56,8 @@ jobs:
 
     - name: Commit and Push Changes
       run: |
-        git config --global user.email "26876927+raminmohammadi@users.noreply.github.com"
-        git config --global user.name "raminmohammadi"
+        git config --global user.email "64745090+dhruvpuri0709@users.noreply.github.com"
+        git config --global user.name "dhruvpuri0709"
         metrics_filename="Labs/Github_Labs/Lab2/metrics/${timestamp}_metrics.json"
         model_filename="Labs/Github_Labs/Lab2/models/model_${timestamp}_dt_model.joblib"
         git add -f "$metrics_filename" "$model_filename"

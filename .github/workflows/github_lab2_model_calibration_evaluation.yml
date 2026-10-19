@@ -1,0 +1,62 @@
+name: Model Calibration and Evaluation - Github Lab 2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Labs/Github_Labs/Lab2/**' # Run only when Lab2 changes
+      - '.github/workflows/github_lab2_model_calibration_evaluation.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Labs/Github_Labs/Lab2/**'
+      - '.github/workflows/github_lab2_model_calibration_evaluation.yml'
+  workflow_dispatch:
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Labs/Github_Labs/Lab2
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Generate and Store Timestamp
+      run: echo "timestamp=$(date '+%Y%m%d%H%M%S')" >> $GITHUB_ENV
+
+    # Trains the base model and saves the calibration and test splits to data/
+    - name: Train Model
+      run: python src/train_model.py --timestamp "$timestamp"
+
+    # Calibrates the trained model and compares base vs calibrated on the test split
+    - name: Calibrate and Evaluate Model
+      run: python src/calibrate_model.py --timestamp "$timestamp" --method sigmoid
+
+    - name: Upload calibration results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: calibration-results-${{ env.timestamp }}
+        path: |
+          Labs/Github_Labs/Lab2/metrics/*_calibration_metrics.json
+          Labs/Github_Labs/Lab2/models/*_calibrated.joblib
+
+    - name: Notify on success
+      if: success()
+      run: echo "Model calibrated and evaluated successfully"
+
+    - name: Notify on failure
+      if: failure()
+      run: echo "Model calibration failed"

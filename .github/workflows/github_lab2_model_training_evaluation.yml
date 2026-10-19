@@ -1,8 +1,13 @@
-name: Periodic Model Calibration - Ghithub Lab 2
+name: Model Training and Evaluation - Github Lab 2
 
-on: 
-  schedule:
-    - cron: '0 0 * * *' 
+on:
+  # Disabled: don't run every day at midnight
+  # schedule:
+  #   - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # Allow the GITHUB_TOKEN to push the new model and metrics back to the repo
 
 jobs:
   retrain:
@@ -55,8 +60,8 @@ jobs:
 
     - name: Commit and Push Changes
       run: |
-        git config --global user.email "26876927+raminmohammadi@users.noreply.github.com"
-        git config --global user.name "raminmohammadi"
+        git config --global user.email "64745090+dhruvpuri0709@users.noreply.github.com"
+        git config --global user.name "dhruvpuri0709"
         git add Labs/Github_Labs/Lab2/metrics/$metrics_filename Labs/Github_Labs/Lab2/models/$model_filename
         git commit -m "Add metrics and updated model"
         git push
