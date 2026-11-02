@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main  # Trigger the workflow on pushes to the main branch
+    paths:
+      - 'Labs/Github_Labs/Lab2/**' # Run only when Lab2 changes
+      - '.github/workflows/github_lab2_model_training_evaluation_on_push.yml'
 
 permissions:
   contents: write  # Allow the GITHUB_TOKEN to push the new model and metrics back to the repo
