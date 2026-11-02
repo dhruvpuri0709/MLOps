@@ -1,4 +1,6 @@
-# Lab 2 – Changes
+# Github Lab 2 – Changes
+
+**Repo:** https://github.com/dhruvpuri0709/MLOps
 
 Summary of what I changed from the original lab, and how to run it.
 
@@ -38,14 +40,14 @@ The probabilities get more reliable. ROC AUC is unchanged, as expected: calibrat
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `github_lab2_model_calibration_evaluation.yml` **(new)** | Push or PR touching Lab2, or manual | Train → calibrate → compare. Uploads the metrics and calibrated model as artifacts. |
+| `github_lab2_model_calibration_evaluation.yml` **(new)** | Push or PR touching Github Lab 2, or manual | Train → calibrate → compare. Uploads the metrics and calibrated model as artifacts. |
 | `github_lab2_model_training_evaluation_on_push.yml` | Push to `main` | Train → evaluate → commit the model and metrics back to the repo |
 | `github_lab2_model_training_evaluation.yml` | Manual only | Same as above. The daily cron is disabled. |
 
 - Renamed the two original workflows from `model_calibration*` to `model_training_evaluation*`, since they train and evaluate but don't calibrate.
 - Added `permissions: contents: write` so the workflow can push its results. On a fork, the push previously failed with a 403 error.
 - Commits from the workflows are now made under my GitHub account instead of the original author's.
-- Disabled the daily schedule for Lab 2 and Lab 3, and removed the Lab 4 CI/CD pipeline. Those workflows were failing on this fork because the GCP secrets aren't set up.
+- Disabled the daily schedules for Github Lab 2 and Github Lab 3, and removed the Github Lab 4 CI/CD pipeline. The Github Lab 3 and Github Lab 4 workflows need GCP secrets that aren't set up on this fork.
 
 ## How to run locally
 

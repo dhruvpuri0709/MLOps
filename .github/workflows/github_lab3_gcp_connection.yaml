@@ -1,7 +1,13 @@
 name: Train and save model to GCS # Define the name of the GitHub Actions workflow
 
 on:
-  # Disabled until Lab3 is set up (needs GCP_SA_KEY secret)
+  push: # Run on every commit pushed to main that changes Lab3 or this workflow
+    branches:
+      - main
+    paths:
+      - 'Labs/Github_Labs/Lab3/**'
+      - '.github/workflows/github_lab3_gcp_connection.yaml'
+  # Daily run disabled
   # schedule:
   #   - cron: '0 0 * * *' # Run every day at midnight
   workflow_dispatch: # Allow manual trigger of the workflow
@@ -41,5 +47,7 @@ jobs:
           credentials_json: '${{ secrets.GCP_SA_KEY }}' # Use GCP service account key stored in GitHub secrets
 
       - name: Train and save model # Train the model and save it to Google Cloud Storage
+        env:
+          GCS_BUCKET_NAME: ${{ vars.GCS_BUCKET_NAME }} # Bucket name from the repo's Actions variables
         run: |
           python Labs/Github_Labs/Lab3/train_and_save_model.py # Run the script to train the model and save it
