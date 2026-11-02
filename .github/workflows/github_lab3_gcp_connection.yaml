@@ -4,9 +4,9 @@ on:
   push: # Run on every commit pushed to main that changes Lab3 or this workflow
     branches:
       - main
-    paths:
-      - 'Labs/Github_Labs/Lab3/**'
-      - '.github/workflows/github_lab3_gcp_connection.yaml'
+    # paths:
+    #   - 'Labs/Github_Labs/Lab3/**'
+    #   - '.github/workflows/github_lab3_gcp_connection.yaml'
   # Daily run disabled
   # schedule:
   #   - cron: '0 0 * * *' # Run every day at midnight
