@@ -13,7 +13,7 @@ env:
   REGION: ${{ vars.GCP_REGION }}             # e.g. us-east1
   REPOSITORY: ${{ vars.ARTIFACT_REPO }}      # Artifact Registry repo, e.g. my-repo
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  SERVICE_NAME: iris-model-api               # Cloud Run service (and image) name
+  SERVICE_NAME: dhruv-iris-model-api               # Cloud Run service (and image) name
 
 jobs:
   build_test_and_deploy:
