@@ -1,0 +1,109 @@
+name: CI/CD - Train, Build and Deploy Model API - Github Lab 4
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Labs/Github_Labs/Lab4/**' # Run only when Lab4 changes
+      - '.github/workflows/github_lab4_ci_cd.yml'
+  workflow_dispatch:
+
+env:
+  REGION: ${{ vars.GCP_REGION }}             # e.g. us-east1
+  REPOSITORY: ${{ vars.ARTIFACT_REPO }}      # Artifact Registry repo, e.g. my-repo
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: iris-model-api               # Cloud Run service (and image) name
+
+jobs:
+  build_test_and_deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash # Adds pipefail, so a failing command piped into tee still fails the step
+        working-directory: Labs/Github_Labs/Lab4
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: Labs/Github_Labs/Lab4/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # CI: nothing is trained or deployed unless the tests pass
+      - name: Run tests
+        run: pytest test/ -v
+
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # Trains, uploads the model to GCS and bumps model_version.txt; also writes model.joblib for the image
+      - name: Train and save model
+        env:
+          GCS_BUCKET_NAME: ${{ vars.GCS_BUCKET_NAME }}
+          VERSION_FILE_NAME: ${{ vars.VERSION_FILE_NAME }}
+        run: |
+          python src/train_and_save_model.py | tee output.txt
+          version=$(grep 'MODEL_VERSION_OUTPUT:' output.txt | awk '{print $2}')
+          if [ -z "$version" ]; then echo "Model version was not updated"; exit 1; fi
+          echo "MODEL_VERSION=$version" >> $GITHUB_ENV
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+
+      # Image tagged with the model version (v1, v2, ...) and latest
+      - name: Build and push Docker image
+        run: |
+          IMAGE=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}
+          docker build --build-arg MODEL_VERSION=${MODEL_VERSION} -t ${IMAGE}:v${MODEL_VERSION} -t ${IMAGE}:latest .
+          docker push --all-tags ${IMAGE}
+          echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
+
+      # CD: deploy this exact version to Cloud Run as a public API
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${SERVICE_NAME} \
+            --image ${IMAGE}:v${MODEL_VERSION} \
+            --region ${REGION} \
+            --project ${PROJECT_ID} \
+            --port 8080 \
+            --memory 512Mi \
+            --max-instances 2 \
+            --allow-unauthenticated \
+            --quiet
+          url=$(gcloud run services describe ${SERVICE_NAME} --region ${REGION} --project ${PROJECT_ID} --format 'value(status.url)')
+          echo "SERVICE_URL=$url" >> $GITHUB_ENV
+
+      # Call the live API to check the deployed version actually serves predictions
+      - name: Smoke test deployed API
+        run: |
+          curl -fsS ${SERVICE_URL}/
+          echo
+          curl -fsS -X POST ${SERVICE_URL}/predict \
+            -H 'Content-Type: application/json' \
+            -d '{"sepal_length": 6.7, "sepal_width": 3.0, "petal_length": 5.8, "petal_width": 2.2}' | tee prediction.json
+          grep -q '"model_version":"'${MODEL_VERSION}'"' prediction.json
+
+      - name: Deployment summary
+        run: |
+          echo "## Model API deployed" >> $GITHUB_STEP_SUMMARY
+          echo "- Model version: \`v${MODEL_VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: \`${IMAGE}:v${MODEL_VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- URL: ${SERVICE_URL}" >> $GITHUB_STEP_SUMMARY
+          echo "- Docs: ${SERVICE_URL}/docs" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deployment failed notification
+        if: failure()
+        run: echo "Pipeline failed. Check the logs for details."

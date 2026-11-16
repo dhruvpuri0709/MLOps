@@ -5,7 +5,6 @@ from unittest.mock import patch, MagicMock
 from src.train_and_save_model import download_data, preprocess_data, train_model
 from src.train_and_save_model import get_model_version, update_model_version
 from src.train_and_save_model import ensure_folder_exists, save_model_to_gcs
-from google.cloud import storage
 
 
 # ----------------- Test Download ----------------- #
@@ -41,17 +40,17 @@ def test_train_model():
         'petal length (cm)': [1.4, 1.4, 1.3, 1.5, 1.4],
         'petal width (cm)': [0.2, 0.2, 0.2, 0.2, 0.2],
     })
-    y = pd.Series([0, 0, 0, 0, 0])
+    y = pd.Series([0, 0, 1, 1, 1])  # Two classes so the model has something to learn
     
     # Train the model using the sample data
     model = train_model(X, y)
     
     # Assertions to verify the model is trained correctly
     assert isinstance(model, RandomForestClassifier)  # Check if the returned model is of the correct type
-    assert hasattr(model, 'predict')                  # Ensure the model has a predict method
+    assert hasattr(model, 'classes_')                 # Only set after fit(), so this fails if the model wasn't trained
+    assert len(model.predict(X)) == len(X)            # Ensure the trained model can make a prediction per row
 
 # ----------------- Test Model versioning ----------------- #
-# mock test a practice exam designed to mimic the format and difficulty level of a real exam
 # This function tests the get_model_version function responsible for retrieving the version of the model stored in Google Cloud Storage.
 def test_get_model_version():
     # Patch the GCP storage client to prevent actual network operations during the test.
@@ -69,11 +68,13 @@ def test_get_model_version():
 
         # Simulate the scenario where the version file exists in the storage
         mock_blob.exists.return_value = True
+        # Set the fake file content before the call. Use '3', not '1': int() of an unconfigured MagicMock is 1,
+        # so '1' would pass even if the file content were ignored
+        mock_blob.download_as_text.return_value = '3'
         version = get_model_version(bucket_name, version_file_name)
-        mock_blob.download_as_text.return_value = '1'  # Simulate blob returning version '1' as text
 
         # Check if the correct version is retrieved and the corresponding methods are called on the mock
-        assert version == 1
+        assert version == 3
         mock_storage_client.return_value.bucket.assert_called_once_with(bucket_name)
         mock_bucket.blob.assert_called_once_with(version_file_name)
         mock_blob.download_as_text.assert_called_once()
@@ -85,8 +86,8 @@ def test_get_model_version():
         
         # Test scenario where the version file does not exist
         mock_blob.exists.return_value = False
+        mock_blob.download_as_text.return_value = '99'  # Should never be read; if it were, version would be 99, not 0
         version = get_model_version(bucket_name, version_file_name)
-        mock_blob.download_as_text.return_value = '0'  # No file to download, should return 0
 
         # Ensure it handles the absence of the version file correctly
         assert version == 0
@@ -140,33 +141,35 @@ def test_update_model_version():
 # ----------------- Test Ensure Folder Exists ----------------- #
 # Test ensure_folder_exists function to verify it correctly ensures the presence of a folder in the storage
 def test_ensure_folder_exists():
-    with patch('google.cloud.storage.Client') as mock_storage_client:
-        mock_bucket = MagicMock()
-        mock_blob = MagicMock()
-        
-        mock_storage_client.return_value.bucket.return_value = mock_bucket
-        mock_bucket.blob.return_value = mock_blob
-        
-        folder_name = "trained_models"
-        
-        # When folder does not exist
-        mock_blob.exists.return_value = False
-        ensure_folder_exists(mock_bucket, folder_name)
-        mock_bucket.blob.assert_called_with(f"{folder_name}/")
-        mock_blob.upload_from_string.assert_called_once_with('')
-        
-        # Reset the mock for the next test
-        mock_blob.reset_mock()
-        
-        # When folder exists
-        mock_blob.exists.return_value = True
-        ensure_folder_exists(mock_bucket, folder_name)
-        mock_bucket.blob.assert_called_with(f"{folder_name}/")
-        mock_blob.upload_from_string.assert_not_called()
+    # ensure_folder_exists takes the bucket as an argument, so a mock bucket is enough (no storage.Client patch needed)
+    mock_bucket = MagicMock()
+    mock_blob = MagicMock()
+    mock_bucket.blob.return_value = mock_blob
+    
+    folder_name = "trained_models"
+    
+    # When folder does not exist
+    mock_blob.exists.return_value = False
+    ensure_folder_exists(mock_bucket, folder_name)
+    mock_bucket.blob.assert_called_with(f"{folder_name}/")
+    mock_blob.upload_from_string.assert_called_once_with('')
+    
+    # Reset the mock for the next test
+    mock_blob.reset_mock()
+    
+    # When folder exists
+    mock_blob.exists.return_value = True
+    ensure_folder_exists(mock_bucket, folder_name)
+    mock_bucket.blob.assert_called_with(f"{folder_name}/")
+    mock_blob.upload_from_string.assert_not_called()
 
 # ----------------- Test Save model to GCS ----------------- #
 # This function tests the 'save_model_to_gcs' function to ensure it correctly saves a model to Google Cloud Storage.
-def test_save_model_to_gcs():
+def test_save_model_to_gcs(tmp_path, monkeypatch):
+    # save_model_to_gcs writes a real model.joblib to the current folder, so run inside a temporary folder
+    # that pytest deletes afterwards instead of leaving the file in the project
+    monkeypatch.chdir(tmp_path)
+    
     # Create a mock RandomForestClassifier model for testing purposes. This represents the model that you want to save.
     model = RandomForestClassifier()
     
@@ -194,8 +197,8 @@ def test_save_model_to_gcs():
         # Check that the bucket was fetched exactly once with the specified name.
         mock_storage_client.return_value.bucket.assert_called_once_with('bucket-test')
         
-        # Assert that the blob method was called exactly twice (once for checking existence, once for uploading).
-        # This line checks that the blob method is called with the correct parameters at least once.
+        # Assert that the blob method was called exactly twice (once for the 'trained_models/' folder marker,
+        # once for the model file itself).
         assert mock_bucket.blob.call_count == 2
         # These calls ensure that both blob invocations were with the expected names.
         mock_bucket.blob.assert_any_call('trained_models/')
