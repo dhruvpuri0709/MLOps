@@ -68,7 +68,7 @@ No champion yet, promoting this model as the first champion
 
 - **Bucket name:** the train step now has `env: GCS_BUCKET_NAME: ${{ vars.GCS_BUCKET_NAME }}`.
 - **Triggers:**
-  - **Push:** runs on every push to `main`. A `paths:` filter limiting it to Lab 3 changes is included but commented out.
+  - **Push:** runs on pushes to `main` that change Lab 3 or this workflow file (`paths:` filter).
   - **Manual:** `workflow_dispatch` lets it be run from the Actions tab.
   - **Schedule:** the daily midnight run is commented out.
 
